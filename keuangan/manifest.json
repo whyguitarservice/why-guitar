@@ -1,0 +1,17 @@
+{
+  "name": "WHY GUITAR — Keuangan Bengkel",
+  "short_name": "WHY GUITAR Keuangan",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "description": "Pencatatan keuangan pribadi bengkel WHY GUITAR",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
