@@ -24,13 +24,6 @@ button:active{transform:scale(.99)} .result{margin-top:18px}
 .photo-box{background:#101116;border:1px solid #3a3b43;border-radius:16px;padding:10px;overflow:hidden}
 .photo-box b{display:block;font-size:13px;margin-bottom:8px;letter-spacing:.5px}
 .photo-box img{display:block;width:100%;max-height:360px;object-fit:cover;border-radius:12px}
-.payment-box{margin-top:16px;background:#171a22;border:1px solid #343744;border-radius:16px;padding:16px}
-.payment-box .payment-title{font-weight:800;font-size:15px;margin-bottom:10px}
-.payment-box .payment-row{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid #2b2e38}
-.payment-box .payment-row:last-child{border-bottom:0}
-.payment-box .label{color:#9da3b5}
-.payment-box .value{font-weight:700;text-align:right}
-
 @media(max-width:520px){.photos{grid-template-columns:1fr}}
 .err{color:#ff8b8b;margin-top:12px} .ok{color:#75e0a7;margin-top:12px}
 
@@ -91,32 +84,58 @@ async function api(path){
 function money(v){return 'Rp '+Number(v||0).toLocaleString('id-ID')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function parsePhotos(raw){
- try{
-   if(!raw) return {before:null,after:null};
-   if(typeof raw==='object'){
-     if(Array.isArray(raw)) return {before:raw[0]||null,after:raw[1]||null};
-     return {before:raw?.before||null,after:raw?.after||null};
-   }
-   let text=String(raw).trim();
-   for(let i=0;i<2;i++){
-     try{
-       const p=JSON.parse(text);
-       if(typeof p==='string'){text=p;continue;}
-       return {before:p?.before||null,after:p?.after||null};
-     }catch(e){break;}
-   }
-   // Dukungan untuk data lama yang menyimpan satu foto langsung sebagai URL/data URL.
-   if(/^https?:\/\//i.test(text)||/^data:image\//i.test(text)||text.startsWith('blob:')) return {before:text,after:null};
-   return {before:null,after:null};
- }catch(e){return {before:null,after:null};}
+  try{
+    if(raw==null || raw==='') return {before:null,after:null};
+
+    if(typeof raw==='object'){
+      if(Array.isArray(raw)) return {before:raw[0]||null,after:raw[1]||null};
+      return {
+        before: raw.before || raw.before_url || raw.photo_before || null,
+        after: raw.after || raw.after_url || raw.photo_after || null
+      };
+    }
+
+    let text=String(raw).trim();
+
+    // Decode JSON repeatedly (some records are JSON-encoded more than once).
+    for(let i=0;i<3;i++){
+      try{
+        const p=JSON.parse(text);
+        if(typeof p==='string'){ text=p.trim(); continue; }
+        if(Array.isArray(p)) return {before:p[0]||null,after:p[1]||null};
+        if(p && typeof p==='object'){
+          return {
+            before:p.before||p.before_url||p.photo_before||null,
+            after:p.after||p.after_url||p.photo_after||null
+          };
+        }
+      }catch(e){}
+      break;
+    }
+
+    // Direct URL / data URL.
+    if(/^https?:\/\//i.test(text)||/^data:image\//i.test(text))
+      return {before:text,after:null};
+
+    // Try extracting URLs from a text/JSON-ish value.
+    const urls=text.match(/https?:\/\/[^\s"'<>]+/gi)||[];
+    if(urls.length>=2) return {before:urls[0],after:urls[1]};
+    if(urls.length===1) return {before:urls[0],after:null};
+
+    return {before:null,after:null};
+  }catch(e){
+    return {before:null,after:null};
+  }
 }
 function photoHtml(x){
- const p=parsePhotos(x.photo_url);
- if(!p.before && !p.after) return '<div class="detail muted">📷 Foto sebelum servis belum tersedia.</div>';
- return `<div class="photos">
-   ${p.before?`<div class="photo-box"><b>📷 FOTO SEBELUM SERVIS</b><img src="${p.before}" alt="Foto sebelum servis" onerror="this.parentElement.innerHTML='<b>📷 FOTO SEBELUM SERVIS</b><div class=\"muted\">Foto tidak dapat dimuat.</div>'"></div>`:''}
-   ${p.after?`<div class="photo-box"><b>📷 FOTO SESUDAH SERVIS</b><img src="${p.after}" alt="Foto sesudah servis" onerror="this.parentElement.innerHTML='<b>📷 FOTO SESUDAH SERVIS</b><div class=\"muted\">Foto tidak dapat dimuat.</div>'"></div>`:''}
- </div>`;
+  const p=parsePhotos(x.photo_url);
+  if(!p.before && !p.after)
+    return '<div class="detail muted">📷 Foto sebelum/sesudah servis belum tersedia.</div>';
+
+  return `<div class="photos">
+    ${p.before?`<div class="photo-box"><b>📷 FOTO SEBELUM SERVIS</b><img src="${p.before}" alt="Foto sebelum servis" onerror="this.parentElement.innerHTML='<b>📷 FOTO SEBELUM SERVIS</b><div class="muted">Foto tidak dapat dimuat.</div>'"></div>`:''}
+    ${p.after?`<div class="photo-box"><b>📷 FOTO SESUDAH SERVIS</b><img src="${p.after}" alt="Foto sesudah servis" onerror="this.parentElement.innerHTML='<b>📷 FOTO SESUDAH SERVIS</b><div class="muted">Foto sesudah belum tersedia atau tidak dapat dimuat.</div>'"></div>`:''}
+  </div>`;
 }
 function card(x){
  const s=x.status||'Sedang dikerjakan';
