@@ -1,0 +1,75 @@
+<!doctype html><html lang="id"><head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WHY GUITAR — Keuangan Bengkel</title><style>*{box-sizing:border-box}body{margin:0;font-family:Arial;background:#111;color:#eee}.wrap{max-width:900px;margin:auto;padding:18px}.card{background:#1d1d1d;border:1px solid #333;border-radius:16px;padding:16px;margin-bottom:14px}h1{font-size:24px;margin:0 0 5px}h2{font-size:18px;margin:0 0 12px}.muted{color:#aaa;font-size:13px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}label{font-size:12px;color:#bbb;display:block;margin-bottom:5px}input{width:100%;padding:12px;border-radius:10px;border:1px solid #444;background:#111;color:#fff;font-size:15px}.btn{border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;background:#e0a800;color:#111;margin-top:10px}.btn.secondary{background:#333;color:#fff}.btn.danger{background:#8d2020;color:#fff}.stat{padding:13px;border-radius:12px;background:#121212}.stat b{display:block;font-size:20px;margin-top:4px}.profit{font-size:28px!important}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #333;text-align:left;vertical-align:top}.tablebox{overflow:auto}.positive{color:#64d98b}.negative{color:#ff7777}@media(max-width:650px){.grid,.stats{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="card"><h1>🎸 WHY GUITAR — Keuangan Bengkel</h1><div class="muted">Pencatatan pribadi • tersimpan di perangkat ini • 💰 Saldo otomatis = Pemasukan − Pengeluaran</div></div><div class="card"><h2>➕ Tambah Transaksi</h2><div class="grid"><div><label>Tanggal</label><input id="date" type="date"></div><div><label>Keterangan</label><input id="note" placeholder="Contoh: Service setup Strat"></div><div><label>Pemasukan Servis (Rp)</label><input id="service" type="number" min="0" value="0"></div><div><label>Pemasukan Penjualan (Rp)</label><input id="sales" type="number" min="0" value="0"></div><div><label>Modal / Sparepart (Rp)</label><input id="material" type="number" min="0" value="0"></div><div><label>Biaya Operasional (Rp)</label><input id="operational" type="number" min="0" value="0"></div></div><button class="btn" onclick="save()">💾 Simpan Transaksi</button><button class="btn secondary" onclick="resetForm()">Bersihkan</button></div><div class="card"><h2>🔄 Ambil dari Data Servis</h2><div class="muted">Ambil servis dengan status <b>Selesai</b> dari database WHY GUITAR.</div><button class="btn" onclick="loadCompletedServices()">🔄 Cek Servis Selesai</button><div id="completedServices" style="margin-top:12px"></div></div><div class="card"><h2>📊 Ringkasan</h2><div><label>Filter Bulan</label><input id="month" type="month" onchange="render()"></div><div class="stats" style="margin-top:10px"><div class="stat">Pemasukan<b id="income">Rp 0</b></div><div class="stat">Pengeluaran<b id="expense">Rp 0</b></div><div class="stat">Saldo Kas<b id="balance" class="profit positive">Rp 0</b></div><div class="stat">Keuntungan Bersih<b id="profit" class="profit positive">Rp 0</b></div></div></div><div class="card"><h2>📒 Riwayat Transaksi</h2><div class="tablebox"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Masuk</th><th>Keluar</th><th>Untung</th><th></th></tr></thead><tbody id="rows"></tbody></table></div><button class="btn secondary" onclick="exportCSV()">⬇️ Export CSV</button><button class="btn danger" onclick="clearAll()">Hapus Semua Data</button></div><div class="card muted">🔒 <b>Privasi:</b> catatan disimpan di browser/perangkat ini. Jangan upload file ini ke GitHub Pages jika ingin benar-benar pribadi.</div></div><script>const KEY='why_guitar_keuangan_v1';let data=JSON.parse(localStorage.getItem(KEY)||'[]');const rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n||0);function today(){return new Date().toISOString().slice(0,10)}date.value=today();month.value=today().slice(0,7);function save(){let x={id:Date.now(),date:date.value,note:note.value.trim(),service:+service.value||0,sales:+sales.value||0,material:+material.value||0,operational:+operational.value||0};if(!x.note){alert('Isi keterangan transaksi dulu.');return}data.push(x);localStorage.setItem(KEY,JSON.stringify(data));resetForm();render()}function resetForm(){date.value=today();note.value='';service.value=0;sales.value=0;material.value=0;operational.value=0}function del(id){if(confirm('Hapus transaksi ini?')){data=data.filter(x=>x.id!==id);localStorage.setItem(KEY,JSON.stringify(data));render()}}function render(){let m=month.value,arr=data.filter(x=>!m||x.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id),inc=0,exp=0;rows.innerHTML=arr.map(x=>{let i=x.service+x.sales,e=x.material+x.operational,p=i-e;inc+=i;exp+=e;return `<tr><td>${x.date}</td><td>${esc(x.note)}</td><td>${rupiah(i)}</td><td>${rupiah(e)}</td><td class="${p>=0?'positive':'negative'}">${rupiah(p)}</td><td><button onclick="del(${x.id})">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="6" class="muted">Belum ada transaksi pada bulan ini.</td></tr>';income.textContent=rupiah(inc);expense.textContent=rupiah(exp);let p=inc-exp;profit.textContent=rupiah(p);profit.className='profit '+(p>=0?'positive':'negative');balance.textContent=rupiah(p);balance.className='profit '+(p>=0?'positive':'negative')}function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}function clearAll(){if(confirm('Semua catatan di perangkat ini akan dihapus. Lanjut?')){data=[];localStorage.removeItem(KEY);render()}}function exportCSV(){let m=month.value,arr=data.filter(x=>!m||x.date.startsWith(m)),csv='Tanggal,Keterangan,Pemasukan Servis,Pemasukan Penjualan,Modal,Operasional,Keuntungan\n';arr.forEach(x=>{let p=x.service+x.sales-x.material-x.operational;csv+=`"${x.date}","${x.note.replaceAll('"','""')}",${x.service},${x.sales},${x.material},${x.operational},${p}\n`});let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='keuangan-why-guitar.csv';a.click()}const SUPA={url:'https://irfjnhzrfeqqobhbntzu.supabase.co',key:'sb_publishable_XbSV_b9aa10bIWE8YqauBw_KPypPIe1'};
+const APIH={apikey:SUPA.key,Authorization:'Bearer '+SUPA.key};
+async function getCompletedServices(){
+  const q='/rest/v1/services?select=id,service_no,customer_name,guitar,cost,paid,status,created_at,updated_at&status=in.(Selesai,Diambil)&order=updated_at.desc';
+  const r=await fetch(SUPA.url+q,{headers:APIH});
+  if(!r.ok)throw Error(await r.text());
+  return r.json();
+}
+function imported(id){return data.some(x=>String(x.sourceServiceId)===String(id))}
+async function syncPaidAmounts(){
+  const services=await getCompletedServices();
+  let changed=false;
+  for(const s of services){
+    const row=data.find(x=>String(x.sourceServiceId)===String(s.id));
+    if(row){
+      const paid=Number(s.paid||0);
+      if(Number(row.service||0)!==paid){row.service=paid;changed=true}
+      if(s.status==='Diambil' || s.status==='Selesai'){
+        row.note=`Servis ${s.service_no||'-'} — ${s.customer_name||'-'}`;
+      }
+    }
+  }
+  if(changed){localStorage.setItem(KEY,JSON.stringify(data));render()}
+}
+async function loadCompletedServices(){
+  const box=document.getElementById('completedServices');
+  box.innerHTML='<div class="muted">⏳ Mengambil data servis...</div>';
+  try{
+    const a=await getCompletedServices();
+    const payable=a.filter(x=>Number(x.paid||0)>0);
+    if(!payable.length){
+      box.innerHTML='<div class="muted">Belum ada servis Selesai/Diambil yang memiliki pembayaran.</div>';
+      return;
+    }
+    box.innerHTML=payable.map(x=>`
+      <div style="border-top:1px solid #333;padding:10px 0">
+        <b>${esc(x.service_no||'-')}</b> · ${esc(x.customer_name||'-')} · ${esc(x.guitar||'-')}<br>
+        <span class="muted">Status: ${esc(x.status||'-')} · Biaya: ${rupiah(Number(x.cost||0))} · Dibayar: ${rupiah(Number(x.paid||0))}</span><br>
+        ${imported(x.id)
+          ? '<span class="positive">✅ Sudah masuk ke keuangan</span>'
+          : `<button class="btn" onclick="importService(${Number(x.id)})">➕ Masukkan Rp ${Number(x.paid||0).toLocaleString('id-ID')} ke Keuangan</button>`}
+      </div>`).join('');
+  }catch(e){
+    box.innerHTML='<div class="negative">Gagal mengambil data servis.</div>';
+    alert('Gagal terhubung ke data servis: '+e.message);
+  }
+}
+async function importService(id){
+  try{
+    const a=await getCompletedServices();
+    const x=a.find(s=>String(s.id)===String(id));
+    if(!x)return alert('Data servis tidak ditemukan.');
+    if(imported(x.id))return alert('Servis ini sudah masuk ke keuangan.');
+    const paid=Number(x.paid||0);
+    if(paid<=0)return alert('Belum ada pembayaran. Belum dimasukkan ke pemasukan.');
+    data.push({
+      id:Date.now(),
+      date:(x.updated_at||x.created_at||today()).slice(0,10),
+      note:`Servis ${x.service_no||'-'} — ${x.customer_name||'-'}`,
+      service:paid,sales:0,material:0,operational:0,sourceServiceId:x.id
+    });
+    localStorage.setItem(KEY,JSON.stringify(data));
+    render();
+    await loadCompletedServices();
+    alert(`✅ Pembayaran Rp ${paid.toLocaleString('id-ID')} berhasil dimasukkan ke keuangan.`);
+  }catch(e){alert('Gagal: '+e.message)}
+}
+syncPaidAmounts().catch(()=>{});
+render();</script><script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></body></html>
